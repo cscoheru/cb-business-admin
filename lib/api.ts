@@ -144,7 +144,7 @@ export const adminApiClient = {
     return response;
   },
 
-  async logout(): void {
+  async logout(): Promise<void> {
     this.removeAdminToken();
   },
 
