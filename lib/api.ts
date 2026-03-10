@@ -1,6 +1,6 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
-// Types
+// ============ Types ============
 export interface User {
   id: string;
   email: string;
@@ -48,6 +48,7 @@ export interface AnalyticsData {
   topCategories: Array<{ category: string; views: number; growth: number }>;
 }
 
+// ============ API Client ============
 export const adminApiClient = {
   async get(endpoint: string, token?: string) {
     const headers: Record<string, string> = {
@@ -57,7 +58,10 @@ export const adminApiClient = {
       headers['Authorization'] = `Bearer ${token}`;
     }
     const response = await fetch(`${API_BASE_URL}${endpoint}`, { headers });
-    if (!response.ok) throw new Error('API request failed');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'API request failed' }));
+      throw new Error(error.detail || 'API request failed');
+    }
     return response.json();
   },
 
@@ -73,7 +77,10 @@ export const adminApiClient = {
       headers,
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('API request failed');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'API request failed' }));
+      throw new Error(error.detail || 'API request failed');
+    }
     return response.json();
   },
 
@@ -89,7 +96,10 @@ export const adminApiClient = {
       headers,
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error('API request failed');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'API request failed' }));
+      throw new Error(error.detail || 'API request failed');
+    }
     return response.json();
   },
 
@@ -102,58 +112,54 @@ export const adminApiClient = {
       method: 'DELETE',
       headers,
     });
-    if (!response.ok) throw new Error('API request failed');
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'API request failed' }));
+      throw new Error(error.detail || 'API request failed');
+    }
     return response.json();
   },
 
-  // Mock data methods (will be replaced with real API calls)
-  async getUsers(filters: { status?: string; plan?: string; search?: string } = {}): Promise<{ users: User[]; total: number }> {
-    const mockUsers: User[] = [
-      {
-        id: '1',
-        email: 'user@example.com',
-        name: '张三',
-        subscription: 'pro',
-        status: 'active',
-        createdAt: '2025-01-15',
-        lastActiveAt: '2025-03-10',
-        apiUsage: { limit: 10000, used: 3456 },
-      },
-      {
-        id: '2',
-        email: 'company@example.com',
-        name: '李四',
-        subscription: 'enterprise',
-        status: 'active',
-        createdAt: '2025-02-01',
-        lastActiveAt: '2025-03-09',
-        apiUsage: { limit: 100000, used: 45678 },
-      },
-      {
-        id: '3',
-        email: 'free@example.com',
-        name: '王五',
-        subscription: 'free',
-        status: 'active',
-        createdAt: '2025-03-01',
-        lastActiveAt: '2025-03-10',
-        apiUsage: { limit: 100, used: 45 },
-      },
-      {
-        id: '4',
-        email: 'suspended@example.com',
-        name: '赵六',
-        subscription: 'pro',
-        status: 'suspended',
-        createdAt: '2024-12-01',
-        lastActiveAt: '2025-02-15',
-        apiUsage: { limit: 10000, used: 8900 },
-      },
-    ];
-    return { users: mockUsers, total: mockUsers.length };
+  // ============ Token Management ============
+  getAdminToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('admin_token');
   },
 
-  async getSubscriptions(filters: { status?: string; plan?: string } = {}): Promise<{
+  setAdminToken(token: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('admin_token', token);
+  },
+
+  removeAdminToken(): void {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem('admin_token');
+  },
+
+  // ============ Auth API ============
+  async login(email: string, password: string): Promise<{ access_token: string; user: any }> {
+    const response = await this.post('/api/v1/auth/login', { email, password });
+    if (response.access_token) {
+      this.setAdminToken(response.access_token);
+    }
+    return response;
+  },
+
+  async logout(): void {
+    this.removeAdminToken();
+  },
+
+  // ============ Admin Data API ============
+  async getUsers(filters: { status?: string; plan_tier?: string; search?: string } = {}): Promise<{ users: User[]; total: number }> {
+    const token = this.getAdminToken();
+    if (!token) {
+      throw new Error('Admin authentication required');
+    }
+
+    const response = await this.post('/api/v1/admin/users', filters, token);
+    return response;
+  },
+
+  async getSubscriptions(filters: { status?: string; plan_tier?: string } = {}): Promise<{
     subscriptions: Subscription[];
     stats: {
       total: number;
@@ -163,99 +169,32 @@ export const adminApiClient = {
       revenue: number;
     };
   }> {
-    const mockSubscriptions: Subscription[] = [
-      {
-        id: 'sub_1',
-        userId: '1',
-        userEmail: 'user@example.com',
-        plan: 'pro',
-        status: 'active',
-        amount: 299,
-        currency: 'CNY',
-        period: 'monthly',
-        startDate: '2025-01-15',
-        nextBillingDate: '2025-04-15',
-      },
-      {
-        id: 'sub_2',
-        userId: '2',
-        userEmail: 'company@example.com',
-        plan: 'enterprise',
-        status: 'active',
-        amount: 2999,
-        currency: 'CNY',
-        period: 'yearly',
-        startDate: '2025-02-01',
-        nextBillingDate: '2026-02-01',
-      },
-      {
-        id: 'sub_3',
-        userId: '4',
-        userEmail: 'suspended@example.com',
-        plan: 'pro',
-        status: 'past_due',
-        amount: 299,
-        currency: 'CNY',
-        period: 'monthly',
-        startDate: '2024-12-01',
-        nextBillingDate: '2025-03-01',
-      },
-    ];
-    return {
-      subscriptions: mockSubscriptions,
-      stats: { total: 156, active: 142, pro: 98, enterprise: 44, revenue: 89500 },
-    };
+    const token = this.getAdminToken();
+    if (!token) {
+      throw new Error('Admin authentication required');
+    }
+
+    const response = await this.post('/api/v1/admin/subscriptions', filters, token);
+    return response;
   },
 
   async getFinanceData(period: string = '30d'): Promise<FinanceData> {
-    return {
-      monthlyRevenue: [
-        { month: '10月', revenue: 45000 },
-        { month: '11月', revenue: 52000 },
-        { month: '12月', revenue: 68000 },
-        { month: '1月', revenue: 71000 },
-        { month: '2月', revenue: 89000 },
-        { month: '3月', revenue: 89500 },
-      ],
-      subscriptionTrend: [
-        { month: '10月', count: 45 },
-        { month: '11月', count: 62 },
-        { month: '12月', count: 89 },
-        { month: '1月', count: 112 },
-        { month: '2月', count: 134 },
-        { month: '3月', count: 142 },
-      ],
-      paymentMethods: [
-        { method: '支付宝', count: 68, percentage: 48 },
-        { method: '微信支付', count: 56, percentage: 40 },
-        { method: '信用卡', count: 18, percentage: 12 },
-      ],
-      totalRevenue: 89500,
-      revenueGrowth: 12.5,
-      activeSubscriptions: 142,
-      subscriptionGrowth: 8.3,
-    };
+    const token = this.getAdminToken();
+    if (!token) {
+      throw new Error('Admin authentication required');
+    }
+
+    const response = await this.get(`/api/v1/admin/finance?period=${period}`, token);
+    return response;
   },
 
   async getAnalyticsData(): Promise<AnalyticsData> {
-    return {
-      totalUsers: 2845,
-      userGrowth: 18.5,
-      activeUsers: 1234,
-      averageApiCalls: 234,
-      apiCallsGrowth: 25.3,
-      topMarkets: [
-        { market: '东南亚', users: 892, growth: 22.5 },
-        { market: '欧盟', users: 567, growth: 15.8 },
-        { market: '拉美', users: 445, growth: 32.1 },
-        { market: '中东', users: 234, growth: 18.2 },
-      ],
-      topCategories: [
-        { category: '电子产品', views: 12450, growth: 28.5 },
-        { category: '美妆个护', views: 8934, growth: 19.2 },
-        { category: '家居用品', views: 6789, growth: 15.6 },
-        { category: '户外用品', views: 5432, growth: 22.8 },
-      ],
-    };
+    const token = this.getAdminToken();
+    if (!token) {
+      throw new Error('Admin authentication required');
+    }
+
+    const response = await this.get('/api/v1/admin/analytics', token);
+    return response;
   },
 };
