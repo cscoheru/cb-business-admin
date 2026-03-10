@@ -25,7 +25,7 @@ export default function UsersPage() {
     try {
       const data = await adminApiClient.getUsers({
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        plan: planFilter !== 'all' ? planFilter : undefined,
+        plan_tier: planFilter !== 'all' ? planFilter : undefined,
         search: searchQuery || undefined,
       });
       setUsers(data.users);

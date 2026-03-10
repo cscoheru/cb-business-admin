@@ -30,7 +30,7 @@ export default function SubscriptionsPage() {
     try {
       const data = await adminApiClient.getSubscriptions({
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        plan: planFilter !== 'all' ? planFilter : undefined,
+        plan_tier: planFilter !== 'all' ? planFilter : undefined,
       });
       setSubscriptions(data.subscriptions);
       setStats(data.stats);
